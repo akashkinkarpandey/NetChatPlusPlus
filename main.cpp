@@ -32,6 +32,10 @@ int main()
         WSACleanup();                             // Clean up Winsock
         return 1;                                 // Exit program
     }
+    sockaddr_in serveraddr;
+    serveraddr.sin_family = AF_INET;//address should be IPv4
+    serveraddr.sin_port = htons(12345);//port number being converted to network byte order
+    
     
     return 0; // Exit program
 }
