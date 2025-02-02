@@ -35,7 +35,20 @@ int main()
     sockaddr_in serveraddr;
     serveraddr.sin_family = AF_INET;//address should be IPv4
     serveraddr.sin_port = htons(12345);//port number being converted to network byte order
-    
-    
+    if (InetPton(AF_INET, _T("0.0.0.0"), &serveraddr.sin_addr) != 1)
+    {
+        cout << "setting address structure failed" << endl;
+        closesocket(listenSocket);
+        WSACleanup(); // Clean up WinSock
+        return 1;
+    }
+    if (bind(listenSocket, (struct sockaddr *)&serveraddr, sizeof(serveraddr)))
+    {
+        cout << "bind failed" << endl;
+        closesocket(listenSocket);
+        WSACleanup(); // Clean up WinSock
+        return 1;
+    }
+    WSACleanup();
     return 0; // Exit program
 }
