@@ -1,47 +1,63 @@
 #include <iostream>   // Include input-output stream library
 #include <WinSock2.h> // Include Windows Sockets 2 library
 #include <WS2tcpip.h> // Include Windows Sockets 2 TCP/IP library
-#include <tchar.h>    // Include tchar.h header file
+#include <tchar.h>    // Include tchar.h header file for Unicode/ANSI string handling
 using namespace std;  // Use the standard namespace
 
-#pragma comment(lib, "ws2_32.lib") // Link with ws2_32.lib library
+// Link with Windows Socket library - Required for socket programming in Windows
+#pragma comment(lib, "ws2_32.lib")
 
 // Function to initialize WinSock
+// Returns true if initialization succeeds, false otherwise
 bool Initialize()
 {
-    WSADATA data; // Structure to store WinSock data
-    // Initialize WinSock version 2.2
+    WSADATA data; // Structure to store WinSock data including version info and system status
+    // Initialize WinSock version 2.2 - Returns 0 on success
+    // MAKEWORD(2,2) requests version 2.2 of the Windows Sockets specification
     return WSAStartup(MAKEWORD(2, 2), &data) == 0;
 }
 
 int main()
 {
-    // Check if WinSock initialization was successful
+    // Initialize Windows Sockets API before any socket operations
     if (!Initialize())
     {
         cout << "winsock initialization failed" << endl; // Print error message
-        return 1;                                        // Exit program
+        return 1;                                        // Exit program with error code
     }
 
-    cout << "Hello Socket Programming!"; // Print success message
-    // Create a TCP socket for IPv4 addresses
+    cout << "Hello Socket Programming!"; // Indicate successful initialization
+
+    // Create a TCP socket (SOCK_STREAM) for IPv4 (AF_INET)
+    // The third parameter 0 lets the system choose the appropriate protocol (TCP)
     SOCKET listenSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (listenSocket == INVALID_SOCKET)
     {
         cout << "socket creation failed" << endl; // Print error message
-        WSACleanup();                             // Clean up Winsock
-        return 1;                                 // Exit program
+        WSACleanup();                             // Clean up Winsock to free resources
+        return 1;                                 // Exit program with error code
     }
-    sockaddr_in serveraddr;
-    serveraddr.sin_family = AF_INET;//address should be IPv4
-    serveraddr.sin_port = htons(12345);//port number being converted to network byte order
+
+    // Define port number for the server to listen on
+    int port = 12345; // Using port above 1024 as lower ports are privileged
+
+    // Configure server address structure
+    sockaddr_in serveraddr;            // IPv4 address structure
+    serveraddr.sin_family = AF_INET;   // Set address family to IPv4
+    serveraddr.sin_port = htons(port); // Convert port to network byte order (big-endian)
+
+    // Convert string IP address "0.0.0.0" to binary form
+    // 0.0.0.0 means the server will listen on all available network interfaces
     if (InetPton(AF_INET, _T("0.0.0.0"), &serveraddr.sin_addr) != 1)
     {
         cout << "setting address structure failed" << endl;
-        closesocket(listenSocket);
-        WSACleanup(); // Clean up WinSock
-        return 1;
+        closesocket(listenSocket); // Close the socket
+        WSACleanup();              // Clean up WinSock
+        return 1;                  // Exit with error
     }
+
+    // Bind the socket to the specified address and port
+    // Cast serveraddr to struct sockaddr* as bind() expects this type
     if (bind(listenSocket, (struct sockaddr *)&serveraddr, sizeof(serveraddr)))
     {
         cout << "bind failed" << endl;
@@ -49,6 +65,29 @@ int main()
         WSACleanup(); // Clean up WinSock
         return 1;
     }
+
+    // Start listening for client connections
+    // SOMAXCONN specifies the maximum length for the queue of pending connections
+    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
+    {
+        cout << "listen failed" << endl;
+        closesocket(listenSocket);
+        WSACleanup(); // Clean up WinSock
+        return 1;
+    }
+
+    cout << "Server is listening on port" << port << endl;
+
+    // Accept a connection from a client
+    // nullptr parameters mean we're not interested in client's address information
+    // This call blocks until a client connects
+    SOCKET clientSocket = accept(listenSocket, nullptr, nullptr);
+    if (clientSocket == SOCKET_ERROR)
+    {
+        cout << "invalid client socket" << endl;
+    }
+
+    // Clean up Windows Sockets API resources
     WSACleanup();
-    return 0; // Exit program
+    return 0; // Exit program successfully
 }
