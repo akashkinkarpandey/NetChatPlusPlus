@@ -3,8 +3,8 @@
 #include <WS2tcpip.h> // Include Windows Sockets 2 TCP/IP library
 #include <tchar.h>    // Include tchar.h header file for Unicode/ANSI string handling
 using namespace std;  // Use the standard namespace
-
-// Link with Windows Socket library - Required for socket programming in Windows
+//  g++ program_name.cpp -o server.exe -lws2_32
+//  Link with Windows Socket library - Required for socket programming in Windows
 #pragma comment(lib, "ws2_32.lib")
 
 // Function to initialize WinSock
@@ -48,12 +48,20 @@ int main()
 
     // Convert string IP address "0.0.0.0" to binary form
     // 0.0.0.0 means the server will listen on all available network interfaces
-    if (InetPton(AF_INET, _T("0.0.0.0"), &serveraddr.sin_addr) != 1)
+    // if (InetPton(AF_INET, _T("0.0.0.0"), &serveraddr.sin_addr) != 1)
+    // {
+    //     cout << "setting address structure failed" << endl;
+    //     closesocket(listenSocket); // Close the socket
+    //     WSACleanup();              // Clean up WinSock
+    //     return 1;                  // Exit with error
+    // }
+    serveraddr.sin_addr.s_addr = inet_addr("0.0.0.0");
+    if (serveraddr.sin_addr.s_addr == INADDR_NONE)
     {
-        cout << "setting address structure failed" << endl;
-        closesocket(listenSocket); // Close the socket
-        WSACleanup();              // Clean up WinSock
-        return 1;                  // Exit with error
+        cout << "Invalid IP address format" << endl;
+        closesocket(listenSocket);
+        WSACleanup();
+        return 1;
     }
 
     // Bind the socket to the specified address and port
@@ -76,18 +84,40 @@ int main()
         return 1;
     }
 
-    cout << "Server is listening on port" << port << endl;
+    cout << " Server is listening on port " << port << endl;
 
     // Accept a connection from a client
     // nullptr parameters mean we're not interested in client's address information
     // This call blocks until a client connects
     SOCKET clientSocket = accept(listenSocket, nullptr, nullptr);
-    if (clientSocket == SOCKET_ERROR)
+    if (clientSocket == static_cast<SOCKET> (SOCKET_ERROR))
     {
         cout << "invalid client socket" << endl;
     }
+    char buffer[4096];
+    int bytesrecvd = recv(clientSocket, buffer, sizeof(buffer), 0);
 
+    if (bytesrecvd > 0)
+    {
+        string message(buffer, bytesrecvd);
+        cout << "Message from client: " << message << endl;
+    }
+    else if (bytesrecvd == 0)
+    {
+        cout << "Client disconnected." << endl;
+        // ... handle client disconnection (e.g., close the socket) ...
+    }
+    else if (bytesrecvd == SOCKET_ERROR)
+    {
+        cerr << "Error receiving data: " << WSAGetLastError() << endl; // Get specific error code
+        // ... handle error (e.g., close the socket) ...
+        closesocket(clientSocket);
+        closesocket(listenSocket);
+        WSACleanup(); // Clean up WinSock
+    }
     // Clean up Windows Sockets API resources
+    closesocket(clientSocket);
+    closesocket(listenSocket);
     WSACleanup();
     return 0; // Exit program successfully
 }
