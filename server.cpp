@@ -26,7 +26,7 @@ int main()
         return 1;                                        // Exit program with error code
     }
 
-    cout << "Hello Socket Programming!"; // Indicate successful initialization
+    cout << "Hello Socket Programming! from server program"; // Indicate successful initialization
 
     // Create a TCP socket (SOCK_STREAM) for IPv4 (AF_INET)
     // The third parameter 0 lets the system choose the appropriate protocol (TCP)
@@ -66,7 +66,7 @@ int main()
 
     // Bind the socket to the specified address and port
     // Cast serveraddr to struct sockaddr* as bind() expects this type
-    if (bind(listenSocket, (struct sockaddr *)&serveraddr, sizeof(serveraddr)))
+    if (bind(listenSocket, (const struct sockaddr *)&serveraddr, sizeof(serveraddr)))
     {
         cout << "bind failed" << endl;
         closesocket(listenSocket);
