@@ -3,6 +3,7 @@
 #include <WS2tcpip.h> // Include Windows Sockets 2 TCP/IP library
 #include <tchar.h>    // Include tchar.h header file for Unicode/ANSI string handling
 #include <thread>
+#include <vector>
 using namespace std;  // Use the standard namespace
 //  g++ server.cpp -o server.exe -lws2_32
 //  Link with Windows Socket library - Required for socket programming in Windows
@@ -17,7 +18,7 @@ bool Initialize()
     // MAKEWORD(2,2) requests version 2.2 of the Windows Sockets specification
     return WSAStartup(MAKEWORD(2, 2), &data) == 0;
 }
-void InteractWithClient(SOCKET clientSocket)
+void InteractWithClient(SOCKET clientSocket,vector<int>&allClientSockets)
 {
     // send/recv client
     char buffer[4096];
@@ -28,6 +29,11 @@ void InteractWithClient(SOCKET clientSocket)
         {
             string message(buffer, bytesrecvd);
             cout << "Message from client: " << message << endl;
+            for(auto &client:allClientSockets){
+                if(client!=clientSocket){
+                    send(client,message.c_str(),message.length(),0);
+                }
+            }
         }
         else if (bytesrecvd == 0)
         {
@@ -43,6 +49,10 @@ void InteractWithClient(SOCKET clientSocket)
             WSACleanup(); // Clean up WinSock
             return;       // to return back to main
         }
+    }
+    auto it = find(allClientSockets.begin(), allClientSockets.end(), clientSocket);
+    if (it != allClientSockets.end()){
+        allClientSockets.erase(it);
     }
     closesocket(clientSocket);
 }
@@ -120,6 +130,7 @@ int main()
     // This call blocks until a client connects
     // Main server loop to accept multiple clients
     int count=0;
+    vector<SOCKET>allClientSockets;
     while (true)
     {
         // Accept a connection
@@ -130,9 +141,10 @@ int main()
             continue;
         }
         count++;
+        allClientSockets.push_back(clientSocket);
         cout << "Client "<<count<<" connected! " << endl;
         // Create a new thread to handle the client
-        thread t1(InteractWithClient, clientSocket);
+        thread t1(InteractWithClient, clientSocket, ref(allClientSockets));
         t1.detach(); // Detach the thread to allow it to run independently
     }
     // Clean up Windows Sockets API resources
