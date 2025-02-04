@@ -15,7 +15,74 @@ bool Initialize()
     // MAKEWORD(2,2) requests version 2.2 of the Windows Sockets specification
     return WSAStartup(MAKEWORD(2, 2), &data) == 0;
 }
-int main(){
+void sendMessage(SOCKET s)
+{
+    //s is client socket holding server's IP address and port 
+    //we are sending message from current client socket s
+    //all other client sockets and the server itself receive the message as well
+    cout << "enter your own name :" << endl;
+    string name;
+    getline(cin, name);
+    string message;
+    // loop keeps running until there is any Socket error or user types 'exit'
+    while (true)
+    {
+        cout << "Enter your new message or Type exit to exit chat" << endl;
+        getline(cin, message);
+        string msgToBeSent = name + " : " + message;
+        int bytesent = send(s, msgToBeSent.c_str(), msgToBeSent.length(), 0);
+        if (bytesent == static_cast<SOCKET>(SOCKET_ERROR))
+        {
+            cout << "error sending message" << endl;
+            break;
+        }
+        if (message == "exit")
+        {
+            //user wants to exit chat
+            break;
+        }
+    }
+    closesocket(s);
+    WSACleanup();
+}
+void receiveMessage(SOCKET s)
+{
+    //when some client sends a message 
+    //server receives the message
+    //then the servers sends the message to other clients
+    //so this socket s here is a client socket 
+    //it listens to server for any incoming message which server may have got from other client
+    char buffer[4096];
+    int bytesrecvd;
+    string msg = "";
+    while (true)
+    {
+        bytesrecvd = recv(s, buffer, sizeof(buffer), 0);
+        if (bytesrecvd > 0)
+        {
+            string message(buffer, bytesrecvd);
+            cout << message << endl;
+        }
+        else if (bytesrecvd == 0)
+        {
+            cout << "Client disconnected." << endl;
+            break; // to break out of loop
+            // ... handle client disconnection (e.g., close the socket) ...
+        }
+        else if (bytesrecvd == static_cast<SOCKET>(SOCKET_ERROR))
+        {
+            cerr << "Error receiving data: " << WSAGetLastError() << endl; // Get specific error code
+            // ... handle error (e.g., close the socket) ...
+            closesocket(s);
+            WSACleanup(); // Clean up WinSock
+            return;       // to return back to main
+        }
+    }
+    closesocket(s);
+    WSACleanup();
+}
+int main()
+{
     if (!Initialize())
     {
         cout << "winsock initialization failed" << endl; // Print error message
@@ -30,8 +97,8 @@ int main(){
     if (s == INVALID_SOCKET)
     {
         cout << " socket creation failed " << endl; // Print error message
-        WSACleanup();                             // Clean up Winsock to free resources
-        return 1;                                 // Exit program with error code
+        WSACleanup();                               // Clean up Winsock to free resources
+        return 1;                                   // Exit program with error code
     }
     string serveraddress = "127.0.0.1";
     // Define port number for the server to listen on
@@ -62,20 +129,28 @@ int main(){
     }
     if (connect(s, reinterpret_cast<sockaddr *>(&serveraddr), sizeof(serveraddr)) == SOCKET_ERROR)
     {
-        cout<<" not able to connect to server "<<endl;
+        cout << " not able to connect to server " << endl;
         closesocket(s);
         WSACleanup();
         return 1;
     }
-    cout<<"successfully connected to server "<<endl;
-    //send/receive message 
-    string message=" hello there ";
-    if(send(s,message.c_str(),message.length(),0)==SOCKET_ERROR){
-        cout<<"send failed"<<endl;
-        closesocket(s);
-        WSACleanup();
-        return 1;
-    };
+    cout << "successfully connected to server " << endl;
+    // send/receive message
+    //  string message=" hello there ";
+    //  if(send(s,message.c_str(),message.length(),0)==static_cast<SOCKET>(SOCKET_ERROR)){
+    //      cout<<"send failed"<<endl;
+    //      closesocket(s);
+    //      WSACleanup();
+    //      return 1;
+    //  };
+
+    //2 threads will independently send/receive messages
+    thread senderthread(sendMessage, s);
+    thread receiverthread(receiveMessage, s);
+    senderthread.join();
+    receiverthread.join();
+    //main thread reaches here only after above 2 threads have finished executing
+    //cleaning up resources
     closesocket(s);
     WSACleanup();
 }
