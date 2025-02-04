@@ -2,8 +2,9 @@
 #include <WinSock2.h> // Include Windows Sockets 2 library
 #include <WS2tcpip.h> // Include Windows Sockets 2 TCP/IP library
 #include <tchar.h>    // Include tchar.h header file for Unicode/ANSI string handling
+#include <thread>
 using namespace std;  // Use the standard namespace
-//  g++ program_name.cpp -o server.exe -lws2_32
+//  g++ server.cpp -o server.exe -lws2_32
 //  Link with Windows Socket library - Required for socket programming in Windows
 #pragma comment(lib, "ws2_32.lib")
 
@@ -16,7 +17,35 @@ bool Initialize()
     // MAKEWORD(2,2) requests version 2.2 of the Windows Sockets specification
     return WSAStartup(MAKEWORD(2, 2), &data) == 0;
 }
-
+void InteractWithClient(SOCKET clientSocket)
+{
+    // send/recv client
+    char buffer[4096];
+    while (1)
+    {
+        int bytesrecvd = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesrecvd > 0)
+        {
+            string message(buffer, bytesrecvd);
+            cout << "Message from client: " << message << endl;
+        }
+        else if (bytesrecvd == 0)
+        {
+            cout << "Client disconnected." << endl;
+            break;//to break out of loop
+            // ... handle client disconnection (e.g., close the socket) ...
+        }
+        else if (bytesrecvd == SOCKET_ERROR)
+        {
+            cerr << "Error receiving data: " << WSAGetLastError() << endl; // Get specific error code
+            // ... handle error (e.g., close the socket) ...
+            closesocket(clientSocket);
+            WSACleanup(); // Clean up WinSock
+            return;       // to return back to main
+        }
+    }
+    closesocket(clientSocket);
+}
 int main()
 {
     // Initialize Windows Sockets API before any socket operations
@@ -89,34 +118,24 @@ int main()
     // Accept a connection from a client
     // nullptr parameters mean we're not interested in client's address information
     // This call blocks until a client connects
-    SOCKET clientSocket = accept(listenSocket, nullptr, nullptr);
-    if (clientSocket == static_cast<SOCKET> (SOCKET_ERROR))
+    // Main server loop to accept multiple clients
+    int count=0;
+    while (true)
     {
-        cout << "invalid client socket" << endl;
-    }
-    char buffer[4096];
-    int bytesrecvd = recv(clientSocket, buffer, sizeof(buffer), 0);
-
-    if (bytesrecvd > 0)
-    {
-        string message(buffer, bytesrecvd);
-        cout << "Message from client: " << message << endl;
-    }
-    else if (bytesrecvd == 0)
-    {
-        cout << "Client disconnected." << endl;
-        // ... handle client disconnection (e.g., close the socket) ...
-    }
-    else if (bytesrecvd == SOCKET_ERROR)
-    {
-        cerr << "Error receiving data: " << WSAGetLastError() << endl; // Get specific error code
-        // ... handle error (e.g., close the socket) ...
-        closesocket(clientSocket);
-        closesocket(listenSocket);
-        WSACleanup(); // Clean up WinSock
+        // Accept a connection
+        SOCKET clientSocket = accept(listenSocket, nullptr, nullptr);
+        if (clientSocket == static_cast<SOCKET>(SOCKET_ERROR))
+        {
+            cout << "invalid client socket" << endl;
+            continue;
+        }
+        count++;
+        cout << "Client "<<count<<" connected! " << endl;
+        // Create a new thread to handle the client
+        thread t1(InteractWithClient, clientSocket);
+        t1.detach(); // Detach the thread to allow it to run independently
     }
     // Clean up Windows Sockets API resources
-    closesocket(clientSocket);
     closesocket(listenSocket);
     WSACleanup();
     return 0; // Exit program successfully
