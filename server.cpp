@@ -86,21 +86,21 @@ int main()
 
     // Convert string IP address "0.0.0.0" to binary form
     // 0.0.0.0 means the server will listen on all available network interfaces
-    // if (InetPton(AF_INET, _T("0.0.0.0"), &serveraddr.sin_addr) != 1)
-    // {
-    //     cout << "setting address structure failed" << endl;
-    //     closesocket(listenSocket); // Close the socket
-    //     WSACleanup();              // Clean up WinSock
-    //     return 1;                  // Exit with error
-    // }
-    serveraddr.sin_addr.s_addr = inet_addr("0.0.0.0");
-    if (serveraddr.sin_addr.s_addr == INADDR_NONE)
+    if (InetPton(AF_INET, _T("0.0.0.0"), &serveraddr.sin_addr) != 1)
     {
-        cout << "Invalid IP address format" << endl;
-        closesocket(listenSocket);
-        WSACleanup();
-        return 1;
+        cout << "setting address structure failed" << endl;
+        closesocket(listenSocket); // Close the socket
+        WSACleanup();              // Clean up WinSock
+        return 1;                  // Exit with error
     }
+    // serveraddr.sin_addr.s_addr = inet_addr("0.0.0.0");
+    // if (serveraddr.sin_addr.s_addr == INADDR_NONE)
+    // {
+    //     cout << "Invalid IP address format" << endl;
+    //     closesocket(listenSocket);
+    //     WSACleanup();
+    //     return 1;
+    // }
 
     // Bind the socket to the specified address and port
     // Cast serveraddr to struct sockaddr* as bind() expects this type
