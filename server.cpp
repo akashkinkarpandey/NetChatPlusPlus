@@ -4,6 +4,7 @@
 #include <tchar.h>    // Include tchar.h header file for Unicode/ANSI string handling
 #include <thread>
 #include <vector>
+#include <algorithm>
 using namespace std;  // Use the standard namespace
 //  g++ server.cpp -o server.exe -lws2_32
 //  Link with Windows Socket library - Required for socket programming in Windows
@@ -18,7 +19,7 @@ bool Initialize()
     // MAKEWORD(2,2) requests version 2.2 of the Windows Sockets specification
     return WSAStartup(MAKEWORD(2, 2), &data) == 0;
 }
-void InteractWithClient(SOCKET clientSocket,vector<int>&allClientSockets)
+void InteractWithClient(SOCKET clientSocket,vector<SOCKET>&allClientSockets)
 {
     // send/recv client
     char buffer[4096];
@@ -45,9 +46,7 @@ void InteractWithClient(SOCKET clientSocket,vector<int>&allClientSockets)
         {
             cerr << "Error receiving data: " << WSAGetLastError() << endl; // Get specific error code
             // ... handle error (e.g., close the socket) ...
-            closesocket(clientSocket);
-            WSACleanup(); // Clean up WinSock
-            return;       // to return back to main
+            break;       // to return back to main
         }
     }
     auto it = find(allClientSockets.begin(), allClientSockets.end(), clientSocket);
@@ -152,3 +151,24 @@ int main()
     WSACleanup();
     return 0; // Exit program successfully
 }
+
+/*
+must be there in c_cpp_properties.json
+{
+  "configurations": [
+    {
+      "name": "Win32",
+      "includePath": [
+        "C:/msys64/mingw64/include",
+        "C:/msys64/mingw64/include/c++/14.2.0",
+        "C:/msys64/mingw64/include/c++/14.2.0/x86_64-w64-mingw32"
+      ],
+      "defines": ["_DEBUG", "UNICODE", "_UNICODE"],
+      "windowsSdkVersion": "10.0.18362.0",
+      "compilerPath": "C:/msys64/mingw64/bin/gcc.exe"
+    }
+  ],
+  "version": 4
+}
+
+*/
